@@ -156,17 +156,17 @@ class ComplexData(QWidget):
         sectionTitle = QtWidgets.QLabel()
         sectionTitle.setText("Era " + str(num))
         sectionTitle.setStyleSheet("background-color: lightgreen")
-        sectionTitle.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Maximum)
+        sectionTitle.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
         layout.addWidget(sectionTitle)
 
         startYr = LabelInputPair("Start Year: ", True)
         layout.addWidget(startYr)
-        startYr.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Maximum)
+        startYr.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
         self.startYr = startYr
 
         endYr = LabelInputPair("End Year: ", True)
         layout.addWidget(endYr)
-        endYr.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Maximum)
+        endYr.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
         self.endYr = endYr
 
         instrumentChoice = LabelDropdownPair("Instrument (choose one): ", instrumentTrans.keys())
