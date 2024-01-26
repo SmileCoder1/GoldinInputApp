@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QHBoxLayout, QVBoxLayout,
 from PyQt5.QtGui import QIntValidator
 from PyQt5.QtCore import Qt
 import sip
+import openai
 
 import pandas as pd
 import sys
@@ -12,9 +13,13 @@ import random
 
 
 
+
 positionList = [""]
 
+#dictionary with codes for sexes
 sexTrans = {"Unknown": 3, "Male": 1, "Female": 2, "Could be Either": 4, "Probably Male": 5, "Probably Female": 6}
+
+#instrument codes
 instrumentTrans = { "Plz Fill me in" : 0, "First Violin": 1, "First Violin & Percussion, Including Keyboard" : 1.1, "Second Violin" : 2, "Second Violin & Keyboard Instruments" : 2.1, "Second Violin & Percussion" : 2.2, "Violas" : 3, 
                    "Violas & Piano & Celeste": 31, "Violas & Celeste" : 32, "Violas & Organ": 33, "Cello / Violoncello" : 4, "Cello & Fretted Instruments" : 41, "Cello & Keyboard Instruments" : 42,
                    "Bass" : 5, "Basses & Percussion" : 51, "Harps" : 6, "Harps & Keyboard" : 61, "Flutes" : 7, "Piccolo & Flutes" : 71, "Piccolo Only"  : 72, "Oboes" : 8, "English Horns & Other Oboes" : 81, 
@@ -25,13 +30,15 @@ instrumentTrans = { "Plz Fill me in" : 0, "First Violin": 1, "First Violin & Per
                    "Tuba" : 14, "Percussion" : 15, "Percussion & Tympani" : 151, "Tympani Only" : 152, "Percussion, Piano & Celeste" : 153, "Piano" : 16, "Piano & Celeste or other keyboard Instruments" : 161, "Celeste" : 17,
                    "Organ" : 18, "Saxophones" : 19, "Keyboard" : 20, "Fretted Instruments" : 21
                    }
+
+#special position codes
 positionTrans = { "None" : "", "Principal": 1, "Concertmaster" : 1, "Associate Principal" : 2, "Associate Concertmaster" : 2, "Assistant Principal" : 3, "Assistant Concertmaster" : 3, "Acting Principal" : 4, "Acting Concertmaster" : 4, 
                  "Acting Assistant Concermaster" : 5, "Acting Assistant Principal" : 5, "Acting co-Concertmaster" : 6, "Concertmaster Emeritus" : 10, "Principal Emeritus" : 10, "Substitute Musician" : 11, "Leave of Absence / Sabbatical" : 12,
                  "Orchestra Fellow" : 13, "Alternate" : 14, "Apprentice Conductor" : 15, "Guest Concertmaster" : 16, "Guest Principal" : 16, "Guest" : 17, "Concertmaster Laureate" : 18, "Principal Laureate" : 18, "Alternating Principals" : 19,
                  "In italics" : 20
                 }
 
-
+#class that stores musican data in a close-to-desired format to be cast into excel
 class Musician():
     def __init__(self):
         firstCatList = ["Last Name", "First Name", "Sex1", "Sex2"]
@@ -46,6 +53,7 @@ class Musician():
         self.data = pd.Series(data, index = indices)
 
 
+#Parent class kind of of the widgets that display information imported from the excel sheet
 class ImportedInfoBox(QWidget):
     def __init__(self, name, data, horizontal = True):
         super().__init__()
@@ -81,13 +89,16 @@ class ImportedInfoBox(QWidget):
             self.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
             self.dataB.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
     
+    #changes displayed information to data
     def updateData(self, data):
         self.dataB.setText(str(data))
 
+    #returns the text stored in that section
     def returnData(self):
         return self.dataB.text()
 
 
+#defines the building block widget that is used in user input side
 class LabelInputPair(QWidget):
     def __init__(self, name, isInt = False):
         super().__init__()
@@ -103,6 +114,7 @@ class LabelInputPair(QWidget):
 
         self.setLayout(layout)
 
+    #returns information the user input
     def getInfo(self, isInt = False):
         if(isInt):
             try: 
@@ -117,11 +129,12 @@ class LabelInputPair(QWidget):
         else:
             return self.input.text().strip()
     
+    #clears the input region 
     def clear(self):
         self.input.clear()
 
 
-
+#another building block widget that has the dropdown used for like sex and instrument and position and stuff
 class LabelDropdownPair(QWidget):
     def __init__(self, name, options):
         super().__init__()
@@ -140,14 +153,15 @@ class LabelDropdownPair(QWidget):
 
         self.setLayout(layout)
 
-
+    #returns the selected option from the dropdown as a string
     def getInfo(self):
         return self.dropDown.currentText()
 
+    #clears the dropdown selected option
     def clear(self):
         self.dropDown.setCurrentText(self.options[0])
 
-
+#Defines the individual era widget  code
 class ComplexData(QWidget):
     def __init__(self, num):
         super().__init__()
@@ -200,29 +214,32 @@ class InputData(QWidget):
     def __init__(self):
         super().__init__()
 
+        self.fName = LabelInputPair("First Name: ")
+        self.lName = LabelInputPair("Last Name: ")
+        self.sex = LabelDropdownPair("Sex", sexTrans.keys())
+        self.eras = ActiveEras()
+        self.addButton = QtWidgets.QPushButton("Add Era")
+        self.remButton = QtWidgets.QPushButton("Remove Era")
+        self.remButton.clicked.connect(self.remEra)
+
+
         topLayout = QVBoxLayout()
         
-        self.fName = LabelInputPair("First Name: ")
         topLayout.addWidget(self.fName)
 
-        self.lName = LabelInputPair("Last Name: ")
         topLayout.addWidget(self.lName)
 
-        self.sex = LabelDropdownPair("Sex", sexTrans.keys())
         topLayout.addWidget(self.sex)
 
-        self.eras = ActiveEras()
         topLayout.addWidget(self.eras)
+        
+        self.addButton.clicked.connect(self.addEra)
 
         btnLayoutWidget = QWidget()
         btnLayout = QHBoxLayout()
         btnLayoutWidget.setLayout(btnLayout)
 
-        self.addButton = QtWidgets.QPushButton("Add Era")
-        self.addButton.clicked.connect(self.addEra)
-
-        self.remButton = QtWidgets.QPushButton("Remove Era")
-        self.remButton.clicked.connect(self.remEra)
+       
 
         btnLayout.addWidget(self.addButton)
         btnLayout.addWidget(self.remButton)
@@ -265,8 +282,8 @@ class ActiveEras(QScrollArea):
         widget = QWidget()
         self.layout = QVBoxLayout(widget)
         self.layout.setAlignment(Qt.AlignTop)
-
         self.eras = []
+        
         newEra = ComplexData(1)
         self.eras.append(newEra)
         self.layout.addWidget(newEra)
@@ -275,6 +292,7 @@ class ActiveEras(QScrollArea):
         self.setWidgetResizable(True)
         
     
+    #clears out all the eras in the app
     def reset(self):
         for era in self.eras:
             self.layout.removeWidget(era)
@@ -283,16 +301,19 @@ class ActiveEras(QScrollArea):
         self.eras.append(ComplexData(1))
         self.layout.addWidget(self.eras[-1])
 
+    #adds a new instrument area on the interface
     def addEra(self):
         self.eras.append(ComplexData(len(self.eras) + 1))
         self.layout.addWidget(self.eras[-1])
 
+    #removes the most recently added instrument era on the interface
     def remEra(self):
         if(len(self.eras) > 1):
             self.layout.removeWidget(self.eras[-1])
             sip.delete(self.eras[-1])
             self.eras.pop()
     
+    #
     def getInfo(self):
         info = []
         for era in self.eras:
@@ -524,9 +545,18 @@ class Window(QWidget):
         self.importedSec.updateInfo(name, data, dates, orch)
         self.inputSec.clearInputs()
 
+    def predictValues(self):
+        messages = [{"role" : "system", "content" : "Role: You are an assistant parsing through a database of orchestra player biographies to find out information about them, including what instruments they played at a specific orchestra and when they played them, their name, and sex."}]
+        firstName = ""
+        lastName = ""
+        sex = ""
+        instruments = "biography excerpt: " + ""
+
+        NamePrompt = "biography excerpt: " + "Could you tell me what this person's First and Last Name are in the following format: First Name, Last Name"
 
 
 def window():
+    openai.my_api_key = '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'
     app = QApplication(sys.argv)
     win = Window()
     win.show()

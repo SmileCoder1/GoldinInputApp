@@ -1,0 +1,14 @@
+script to feed chatgpt: 
+
+Role: You are an assistant parsing through a database of orchestra player biographies to find out information about them, including what instruments they played at a specific orchestra and when they played them, their name, and sex.
+
+
+/*
+I am parsing information from an orchestra database and want to find out what instruments players played and when they played them at certain orchestras. Please assist me with this.
+*/
+
+
+years active: {Dates}
+
+Please tell me what instruments this person played for {Orchestra} and only respond in the format (because I'm parsing your output): 
+instrument, start year-end year. If you cannot tell, please say idk.
