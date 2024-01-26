@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QHBoxLayout, QVBoxLayout,
 from PyQt5.QtGui import QIntValidator
 from PyQt5.QtCore import Qt
 import sip
-import openai
+from openai import OpenAI
 
 import pandas as pd
 import sys
@@ -12,7 +12,9 @@ import os
 import random
 
 
-
+client = OpenAI(
+    api_key='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'
+)
 
 positionList = [""]
 
@@ -518,6 +520,81 @@ class Window(QWidget):
 
         self.nextInfoset()
 
+    def predictValues(self, name, data, orch, dates):
+        try: 
+            messages = [{"role" : "system", "content" : "Role: You are an assistant parsing through a database of orchestra player biographies to find out information about them, including what instruments they played at a specific orchestra and when they played them, their name, and sex."}]
+            firstName = ""
+            lastName = ""
+            sex = ""
+            bio = "Dates Active " +  dates +   " biography excerpt: " + data + " Please try your best to tell me what instruments this person played throughout their lives. If it is unclear, please try to make a guess. Please follow this format exactly and do not add words like \"assistant\" or \"principal\" or anything about the places they played. 1 word or numbers at each please: \"Era: startyear, endyear instrument, Era: start-year, end-year, instrument \"  etc. "
+            messages.append({"role": "user", "content": bio})
+            
+            chat = client.chat.completions.create(
+                model="gpt-4", messages=messages
+            )
+            print(chat.choices[0].message.content)
+            first = True
+            wordNum = 0
+            pos = 0
+            done = False
+            collec = chat.choices[0].message.content.split(" ")
+            while(wordNum < len(collec)):
+                try:
+                    if(collec[wordNum] == "Era:"):
+                        if(not first):
+                            self.inputSec.eras.addEra()
+                        first = False
+                        pos = 0
+                        print("got here")
+                    elif (pos == 1) :
+                        self.inputSec.eras.eras[-1].startYr.input.setText(collec[wordNum])
+                        print("got here 2")
+                    elif (pos == 2):
+                        self.inputSec.eras.eras[-1].endYr.input.setText(collec[wordNum])
+                        print("got here 3")
+                    elif (pos == 3):
+                        self.inputSec.eras.eras[-1].instrumentChoice.setCurrentText(collec[wordNum])
+                    elif (pos == 4):
+                        self.inputSec.eras.eras[-1].positionChoice.setcurrentText(collec[wordNum])
+                    wordNum += 1
+                    pos += 1
+                except:
+                    break
+
+
+
+
+            namePrompt = "Name excerpt: " + name +  " Could you tell me what this person's First and Last Name are in the following format (please follow it exactly and do not write \"First Name\" or \"Last Name\"): \"First Name, Last Name\" (If you don't know one or both of them, write idk in that field and ignore middle initials)"
+
+            messages.append({"role": "user", "content": namePrompt})
+
+            chat = client.chat.completions.create(
+                model="gpt-4", messages = messages
+            )
+
+            print(chat.choices[0].message.content)
+            
+            try:
+                # print(self.inputSec.fName.input.setTExt)
+                self.inputSec.fName.input.setText(chat.choices[0].message.content.split(", ")[0])
+                self.inputSec.lName.input.setText(chat.choices[0].message.content.split(", ")[1])
+            except:
+                print("lol")
+            messages.append({"role": "user", "content": "Based on the biography and the name, what is the person's sex? Please respond with 1 word out of the following (no explanation needed) Male, Female, Uknown, Probably Male, or Probably Female"})
+            chat = client.chat.completions.create(
+                model="gpt-4", messages = messages
+            )
+            print(chat.choices[0].message.content)
+            try:
+                self.inputSec.sex.dropDown.setCurrentText(chat.choices[0].message.content)
+            except:
+                print("whoops3")
+        except:
+            print("whoops")
+        
+
+
+
     def nextInfoset(self):
         self.idx = 0 if self.idx < 0 else self.idx + 1
         if(self.idx >= (len(self.df.index))):
@@ -544,19 +621,17 @@ class Window(QWidget):
         dates = self.df.loc[self.idx, "Dates"]
         self.importedSec.updateInfo(name, data, dates, orch)
         self.inputSec.clearInputs()
+        self.predictValues(name, data, orch, dates)
 
-    def predictValues(self):
-        messages = [{"role" : "system", "content" : "Role: You are an assistant parsing through a database of orchestra player biographies to find out information about them, including what instruments they played at a specific orchestra and when they played them, their name, and sex."}]
-        firstName = ""
-        lastName = ""
-        sex = ""
-        instruments = "biography excerpt: " + ""
 
-        NamePrompt = "biography excerpt: " + "Could you tell me what this person's First and Last Name are in the following format: First Name, Last Name"
+    
+
+        
+        
 
 
 def window():
-    openai.my_api_key = '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'
+    # openai.my_api_key = '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'
     app = QApplication(sys.argv)
     win = Window()
     win.show()
